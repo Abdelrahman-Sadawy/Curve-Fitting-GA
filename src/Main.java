@@ -1,6 +1,7 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -9,6 +10,11 @@ public class Main {
     final static double lower = -10.0;
     final static double upper = 10.0;
     static final double pc = 0.5;
+
+    static final double pm = 0.01;
+    static final int generationNum = 100;
+    static final int b = 1;
+    static final int T = generationNum - 1;
 
     public static ArrayList<ArrayList<Double>> populationInit(int degree) {
         Random random = new Random();
@@ -62,8 +68,6 @@ public class Main {
             int rand1 = random.nextInt(chromosomesSize);
             int rand2 = random.nextInt(chromosomesSize);
 
-            System.out.println("rand1 " + rand1 + " rand2 " + rand2);
-
             selectionNum = bestFitness(fitness, rand1, rand2);
             parentsInd.add(selectionNum);
         }
@@ -94,7 +98,7 @@ public class Main {
             int r1 = random.nextInt((chromosomes.get(1).size() - 1) - 1) + 1;
             int r2 = random.nextInt((chromosomes.get(1).size() - 1) - 1) + 1;
 
-            System.out.println("RP " + randomProbability + " R1 " + r1 + " R2 " + r2);
+            //System.out.println("RP " + randomProbability + " R1 " + r1 + " R2 " + r2);
 
             int crossoverPoint1, crossoverPoint2;
 
@@ -133,6 +137,72 @@ public class Main {
         return offSprings;
     }
 
+    public static ArrayList<ArrayList<Double>> mutation(ArrayList<ArrayList<Double>> offSprings, int t) {
+        Random random = new Random();
+
+        double deltaLower, deltaUpper;
+        double y;
+        double deltaTY;
+        double pow1, pow2;
+
+
+        for (ArrayList<Double> offSpring : offSprings) {
+            for (int j = 0; j < offSprings.get(1).size(); j++) {
+                double probabilityOfMutation = random.nextDouble(1);
+                deltaLower = offSpring.get(j) - lower;
+                deltaUpper = upper - offSpring.get(j);
+
+                float r1 = random.nextFloat(1);
+                float r = random.nextFloat(1);
+
+                if (probabilityOfMutation <= pm) {
+                    if (r1 <= 0.5)
+                        y = deltaLower;
+                    else
+                        y = deltaUpper;
+
+                    pow1 = Math.pow((1.0 - (1.0 * t / T)), b);
+                    pow2 = Math.pow(r, pow1);
+                    deltaTY = y * (1.0 - pow2);
+
+                    if (y == deltaLower) {
+                        offSpring.set(j, offSpring.get(j) - deltaTY);
+                    } else {
+                        offSpring.set(j, offSpring.get(j) + deltaTY);
+                    }
+
+
+                }
+            }
+        }
+        return offSprings;
+    }
+
+    public static ArrayList<ArrayList<Double>> replacement(ArrayList<ArrayList<Double>> oldGeneration,
+                                                           ArrayList<ArrayList<Double>> offSprings, ArrayList<Double> parentFitness, ArrayList<Double> offSpringsFitness) {
+
+        double parentMax, offSpringMax;
+        ArrayList<ArrayList<Double>> newGeneration = new ArrayList<>();
+        for (int i = 0; i < parentFitness.size(); i++) {
+            //newGeneration.add(new ArrayList<>());
+
+            parentMax = Collections.max(parentFitness);
+            offSpringMax = Collections.max(offSpringsFitness);
+
+
+            if (parentMax > offSpringMax) {
+                newGeneration.add(oldGeneration.get(parentFitness.indexOf(parentMax)));
+                parentFitness.remove(parentMax);
+            } else {
+                newGeneration.add(offSprings.get(offSpringsFitness.indexOf(offSpringMax)));
+                offSpringsFitness.remove(offSpringMax);
+            }
+
+        }
+        return newGeneration;
+
+    }
+
 
     public static void main(String[] args) throws FileNotFoundException {
         File file = new File("curve_fitting_input.txt");
@@ -144,10 +214,13 @@ public class Main {
         double[] y;
 
         ArrayList<ArrayList<Double>> chromosomes;
+        ArrayList<ArrayList<Double>> offSprings;
+
         ArrayList<Double> fitness;
         ArrayList<Integer> parentsInd;
+        ArrayList<Double> offSpringFitness;
 
-        /*chromosomes.add(new ArrayList<>());
+        /* chromosomes.add(new ArrayList<>());
         chromosomes.get(0).add(1.95);
         chromosomes.get(0).add(8.16);
         chromosomes.get(0).add(-2.0);
@@ -160,8 +233,12 @@ public class Main {
         double[] x1 = new double[]{1.0, 2.0, 3.0, 4.0};
         double[] y2 = new double[]{5.0, 8.0, 13.0, 20.0};
 
+        System.out.println("Fitness ");
         System.out.println(fitness = fitnessCalc(x1, y2, chromosomes, 4, 2));
-        System.out.println(tournamentSelection(fitness, chromosomes.size()));*/
+        System.out.println("parentInd ");
+        System.out.println(tournamentSelection(fitness, chromosomes.size()));
+        System.out.println("Mutation ");
+        System.out.println(mutation(chromosomes, 97));*/
 
         for (int i = 0; i < testCaseNum; i++) {
             pointsNum = sc.nextInt();
@@ -180,8 +257,14 @@ public class Main {
             System.out.println(fitness = fitnessCalc(x, y, chromosomes, pointsNum, degree));
             System.out.println("Parents ");
             System.out.println(parentsInd = tournamentSelection(fitness, chromosomes.size()));
-            System.out.println("Crossover");
-            System.out.println(crossover(parentsInd, chromosomes));
+
+            offSprings = crossover(parentsInd, chromosomes);
+            System.out.println("Mutation");
+            System.out.println(mutation(offSprings, 97));
+            offSpringFitness = fitnessCalc(x, y, offSprings, pointsNum, degree);
+
+            System.out.println("Replacement: ");
+            System.out.println(replacement(chromosomes, offSprings, fitness, offSpringFitness));
 
         }
 
