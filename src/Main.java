@@ -1,5 +1,7 @@
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
@@ -16,9 +18,11 @@ public class Main {
     static final int b = 1;
     static final int T = generationNum - 1;
 
+    static double bestValue;
+
     public static ArrayList<ArrayList<Double>> populationInit(int degree) {
         Random random = new Random();
-        int populationSize = random.nextInt(50 - 5) + 5;
+        int populationSize = random.nextInt(500 - 100) + 100;
         ArrayList<ArrayList<Double>> chromosomes = new ArrayList<>();
         for (int i = 0; i < populationSize; i++) {
             chromosomes.add(new ArrayList<>());
@@ -34,10 +38,10 @@ public class Main {
         ArrayList<Double> fitness = new ArrayList<>();
 
         for (ArrayList<Double> chromosome : chromosomes) {
-            double totalError = 0;
+            double totalError = 0.0;
 
             for (int i = 0; i < pointsNum; i++) {
-                double error = 0;
+                double error = 0.0;
                 for (int j = 0; j <= degree; j++) {
                     error += chromosome.get(j) * Math.pow(x[i], j);
                 }
@@ -183,7 +187,7 @@ public class Main {
 
         double parentMax, offSpringMax;
         ArrayList<ArrayList<Double>> newGeneration = new ArrayList<>();
-        for (int i = 0; i < parentFitness.size(); i++) {
+        for (int i = 0; i < oldGeneration.size(); i++) {
             //newGeneration.add(new ArrayList<>());
 
             parentMax = Collections.max(parentFitness);
@@ -192,10 +196,10 @@ public class Main {
 
             if (parentMax > offSpringMax) {
                 newGeneration.add(oldGeneration.get(parentFitness.indexOf(parentMax)));
-                parentFitness.remove(parentMax);
+                parentFitness.set(parentFitness.indexOf(parentMax), -Double.MAX_VALUE);
             } else {
                 newGeneration.add(offSprings.get(offSpringsFitness.indexOf(offSpringMax)));
-                offSpringsFitness.remove(offSpringMax);
+                offSpringsFitness.set(offSpringsFitness.indexOf(offSpringMax), -Double.MAX_VALUE);
             }
 
         }
@@ -203,8 +207,17 @@ public class Main {
 
     }
 
+    public static void selectBestChromosome(ArrayList<Double> fitness, ArrayList<ArrayList<Double>> chromosomes, int dataSetIndex) throws IOException, IOException {
+        ArrayList<Double> bestIndividual;
+        bestValue = Collections.max(fitness);
+        bestIndividual = chromosomes.get(fitness.indexOf(bestValue));
+        double meanSquareError = 1.0 / bestValue;
+        FileWriter fileWriter = new FileWriter("output.txt", true);
+        fileWriter.write("Dataset Index: " + dataSetIndex + "\nCoefficients of the polynomial function: \n" + bestIndividual + "\nMean square error: " + meanSquareError + "\n");
+        fileWriter.close();
 
-    public static void main(String[] args) throws FileNotFoundException {
+    }
+    public static void main(String[] args) throws IOException {
         File file = new File("curve_fitting_input.txt");
         Scanner sc = new Scanner(file);
         int testCaseNum = sc.nextInt();
@@ -220,25 +233,6 @@ public class Main {
         ArrayList<Integer> parentsInd;
         ArrayList<Double> offSpringFitness;
 
-        /* chromosomes.add(new ArrayList<>());
-        chromosomes.get(0).add(1.95);
-        chromosomes.get(0).add(8.16);
-        chromosomes.get(0).add(-2.0);
-
-        chromosomes.add(new ArrayList<>());
-        chromosomes.get(1).add(4.26);
-        chromosomes.get(1).add(-7.4);
-        chromosomes.get(1).add(-2.5);
-
-        double[] x1 = new double[]{1.0, 2.0, 3.0, 4.0};
-        double[] y2 = new double[]{5.0, 8.0, 13.0, 20.0};
-
-        System.out.println("Fitness ");
-        System.out.println(fitness = fitnessCalc(x1, y2, chromosomes, 4, 2));
-        System.out.println("parentInd ");
-        System.out.println(tournamentSelection(fitness, chromosomes.size()));
-        System.out.println("Mutation ");
-        System.out.println(mutation(chromosomes, 97));*/
 
         for (int i = 0; i < testCaseNum; i++) {
             pointsNum = sc.nextInt();
@@ -251,21 +245,22 @@ public class Main {
                 y[j] = sc.nextDouble();
             }
 
-            System.out.println("Population");
-            System.out.println(chromosomes = populationInit(degree));
-            System.out.println("fitness ");
-            System.out.println(fitness = fitnessCalc(x, y, chromosomes, pointsNum, degree));
-            System.out.println("Parents ");
-            System.out.println(parentsInd = tournamentSelection(fitness, chromosomes.size()));
+            chromosomes = populationInit(degree);
+            fitness = fitnessCalc(x, y, chromosomes, pointsNum, degree);
 
-            offSprings = crossover(parentsInd, chromosomes);
-            System.out.println("Mutation");
-            System.out.println(mutation(offSprings, 97));
-            offSpringFitness = fitnessCalc(x, y, offSprings, pointsNum, degree);
+            for(int k = 0; k < generationNum - 1; k++){
+               parentsInd = tournamentSelection(fitness, chromosomes.size());
 
-            System.out.println("Replacement: ");
-            System.out.println(replacement(chromosomes, offSprings, fitness, offSpringFitness));
+                offSprings = crossover(parentsInd, chromosomes);
+                mutation(offSprings, k);
+                offSpringFitness = fitnessCalc(x, y, offSprings, pointsNum, degree);
 
+                chromosomes = replacement(chromosomes, offSprings, fitness, offSpringFitness);
+
+               fitness = fitnessCalc(x, y, chromosomes, pointsNum, degree);
+
+            }
+            selectBestChromosome(fitness, chromosomes, i);
         }
 
     }
